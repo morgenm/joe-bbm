@@ -1,7 +1,8 @@
 [package]
 name = "joe-bbm"
-version = "0.1.0"
-authors = ["morgen"]
+version = "1.0.0"
+authors = ["morgenem@protonmail.com"]
 edition = "2018"
 
 [dependencies]
+dirs = "2.0.1"
