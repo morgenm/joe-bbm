@@ -1,4 +1,5 @@
 extern crate dirs; //Used to get the user's home dir
+extern crate args; //Used to handle cli arguments
 
 use std::env;
 use std::fs;
@@ -15,7 +16,7 @@ fn list_dir(dir: &Path) -> std::io::Result<Vec<PathBuf>> { //Get all files and d
     Ok(vec)
 }
 
-fn get_dirs(dir: Vec<PathBuf>) -> Vec<PathBuf> {
+fn get_dirs(dir: Vec<PathBuf>) -> Vec<PathBuf> { //Returns only PathBufs that are attributed to dirs, not files
     let mut v = Vec::new();
     for d in dir.iter() {
         if d.is_dir() { v.push(d.to_path_buf()); }
@@ -23,7 +24,7 @@ fn get_dirs(dir: Vec<PathBuf>) -> Vec<PathBuf> {
     v
 }
 
-fn recursive_dir_grab(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
+fn recursive_dir_grab(dir: &Path) -> std::io::Result<Vec<PathBuf>> { //Returns a list of all dirs starting from given Path 
     let mut final_list: Vec<PathBuf> = Vec::new();
     final_list.push(dir.to_path_buf());
     
@@ -44,8 +45,8 @@ fn recursive_dir_grab(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
             break;
         }
         let recursive_dir_list = recursive_dir_grab(d)?;
-        for r in recursive_dir_list.iter() {
-            final_list.push(r.to_path_buf());
+        for r_dir in recursive_dir_list.iter() { 	//When this variable, "r_dir" is only one character 
+            final_list.push(r_dir.to_path_buf());	//long, joe's rust syntax highlighting stops working
         }
         final_list.push(d.to_path_buf());
     }
@@ -93,16 +94,54 @@ fn find_backup_files() -> std::io::Result<Vec<PathBuf>> { //Get a vector of all 
 }
 
 fn main() {
-    //let args: Vec<String> = env::args().collect();
-    let backup_files = find_backup_files();
-    let backup_files = match backup_files {
-        Ok(vec) => vec,
-        Err(err) => {
-            println!("Error: {:?}", err.get_ref());
+    //Argument handling
+    let mut arg = args::Args::new("joe-bbm", "Joe-betterbackups Manager");
+    arg.flag("h", "help", "Print program usage.");
+    arg.flag("f", "find", "Find Joe backup files.");
+    
+    let input: Vec<String> = env::args().collect();
+    let parse_res = arg.parse(input);
+    match parse_res {
+        Ok(_) => (),
+        Err(e) => {
+            println!("Error: {}", e);
             return;
-        },          
+        },
     };
-    for f in backup_files.iter() {
-        println!("{}", f.to_str().unwrap());
+    
+    let help = arg.value_of("help"); //Help argument
+    let help = match help {
+        Ok(h) => h,
+        Err(e) => {
+            println!("Error: {}", e);
+            return;
+        },
+    };
+    if help {
+        println!("{}", arg.full_usage());
+        return;
+    }
+    
+    let find = arg.value_of("find"); //Find argument
+    let find = match find {
+        Ok(f) => f,
+        Err(e) => {
+            println!("Error {}", e);
+            return;
+        },
+    };
+    if find {
+        let backup_files = find_backup_files();
+        let backup_files = match backup_files {
+            Ok(vec) => vec,
+            Err(err) => {
+                println!("Error: {:?}", err.get_ref());
+                return;
+            },          
+        };
+        for f in backup_files.iter() {
+            println!("{}", f.to_str().unwrap());
+        }    
     }
 }
+
