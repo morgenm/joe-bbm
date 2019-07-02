@@ -1,5 +1,6 @@
 extern crate dirs; //Used to get the user's home dir
 extern crate args; //Used to handle cli arguments
+extern crate getopts;
 
 use std::env;
 use std::fs;
@@ -53,7 +54,7 @@ fn recursive_dir_grab(dir: &Path) -> std::io::Result<Vec<PathBuf>> { //Returns a
     Ok(final_list)
 }
 
-fn find_backup_files() -> std::io::Result<Vec<PathBuf>> { //Get a vector of all files ending with '~' starting in home_dir
+fn find_backup_files(ext: String) -> std::io::Result<Vec<PathBuf>> { //Get a vector of all files ending with '~' starting in home_dir
     let home_dir = dirs::home_dir();
     let home_dir = match home_dir {
         Some(path) => path,
@@ -72,18 +73,21 @@ fn find_backup_files() -> std::io::Result<Vec<PathBuf>> { //Get a vector of all 
         }
     }
     
+    println!("[-] Finding files ending with {}", ext);
+    
     let mut found: Vec<PathBuf> = Vec::new();
     for p in files.iter(){
         let s = p.to_str();
         let f = match s{ //Find
-            Some(string) => string.find("~"), //If s was succesfully converted to str, then see if '~' is in the string
+            Some(string) => string.find(&ext), //If s was succesfully converted to str, then see if '~' is in the string
             None => None,
         };
         match f{ //See if '~' was found
             Some(_) => {
-                let last_char_vec: Vec<char> = s.unwrap().chars().rev().take(1).collect();
-                let last_char = last_char_vec[0];
-                if last_char == '~'{
+                let ext_length = ext.chars().count();
+                let last_char_vec: Vec<char> = s.unwrap().chars().rev().take(ext_length).collect();
+                let last_char_string: String = last_char_vec.into_iter().rev().collect();
+                if ext == last_char_string {
                     found.push(p.to_path_buf());
                 }
             },
@@ -98,6 +102,7 @@ fn main() {
     let mut arg = args::Args::new("joe-bbm", "Joe-betterbackups Manager");
     arg.flag("h", "help", "Print program usage.");
     arg.flag("f", "find", "Find Joe backup files.");
+    arg.option("e", "extension", "File extension Joe uses for backups. Default: ~", "EXT", getopts::Occur::Optional, None);
     
     let input: Vec<String> = env::args().collect();
     let parse_res = arg.parse(input);
@@ -130,8 +135,14 @@ fn main() {
             return;
         },
     };
+    let extension = arg.value_of("extension");
+    let extension = match extension {
+        Ok(e) => e,
+        Err(e) => String::from("~")
+    };
+    
     if find {
-        let backup_files = find_backup_files();
+        let backup_files = find_backup_files(extension);
         let backup_files = match backup_files {
             Ok(vec) => vec,
             Err(err) => {
@@ -141,7 +152,13 @@ fn main() {
         };
         for f in backup_files.iter() {
             println!("{}", f.to_str().unwrap());
-        }    
+        }
+    }
+    else {
+        if extension != "~" {
+            println!("Invalid argument: -e {}. Setting the extension option requires finding files with -f", extension);
+            return;
+        }
     }
 }
 
